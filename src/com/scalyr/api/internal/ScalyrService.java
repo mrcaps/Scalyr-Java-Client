@@ -24,6 +24,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.Random;
@@ -176,6 +178,24 @@ public abstract class ScalyrService {
     }
   }
 
+  private InetSocketAddress socketAddressFromName(String proxyName) {
+    // trim off protocol part
+    int ssdx;
+    if ((ssdx = proxyName.indexOf("//")) > -1) {
+      proxyName = proxyName.substring(ssdx + 2);
+    }
+    int proxyPort = 443;
+    if ((ssdx = proxyName.indexOf(":")) > -1) {
+      int ssdx2 = proxyName.indexOf("/", ssdx);
+      if (ssdx2 < 0) {
+        ssdx2 = proxyName.length();
+      }
+      proxyPort = Integer.parseInt(proxyName.substring(ssdx + 1, ssdx2));
+      proxyName = proxyName.substring(0, ssdx);
+    }
+    return new InetSocketAddress(proxyName, proxyPort);
+  }
+
   /**
    * Invoke serverAddress/methodName on the server, sending the specified parameters as the request
    * body. Return the (JSON-format) response.
@@ -189,7 +209,14 @@ public abstract class ScalyrService {
       // Send the request.
       long startTimeMs = ScalyrUtil.currentTimeMillis();
       URL url = new URL(serverAddress + methodName);
-      connection = (HttpURLConnection) url.openConnection();
+      String proxyName = System.getenv("https_proxy");
+      if (null == proxyName) {
+        connection = (HttpURLConnection) url.openConnection();
+      } else {
+        InetSocketAddress inet = socketAddressFromName(proxyName);
+        Logging.log(Severity.warning, Logging.tagServerCommunication, "Using proxy " + proxyName);
+        connection = (HttpURLConnection) url.openConnection(new Proxy(Proxy.Type.HTTP, inet));
+      }
       connection.setRequestMethod("POST");
       connection.setUseCaches(false);
       connection.setDoInput(true);

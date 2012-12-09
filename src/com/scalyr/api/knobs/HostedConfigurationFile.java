@@ -58,7 +58,7 @@ class HostedConfigurationFile extends ConfigurationFile {
     this.knobService = knobService;
     
     if (cacheDir != null) {
-      cacheFile = new File(cacheDir, filePath.replace('/', '|'));
+      cacheFile = new File(cacheDir, filePath.replace('/', '-'));
       fetchInitialStateFromCacheFile();
     } else {
       cacheFile = null;
